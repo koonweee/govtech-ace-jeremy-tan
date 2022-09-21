@@ -14,8 +14,8 @@ createStyles({
   paper: {
     marginTop: theme.spacing(10),
     margin: `${theme.spacing(0)} auto`,
-    padding: theme.spacing(1),
-    width: 600,
+    padding: theme.spacing(2),
+    width: 750,
   }
 })
 );

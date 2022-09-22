@@ -9,9 +9,21 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
-model Link {
+model Team {
   id     Int    @id @default(autoincrement())
-  url         String  @unique
-  shortenedPath String @unique
+  name         String  @unique
+  groupNumber Int
+  registrationDate DateTime
+  matchesAsHomeTeam Match[] @relation("hometeam")
+  matchesAsAwayTeam Match[] @relation("awayteam")
+}
+
+model Match {
+  id     Int    @id @default(autoincrement())
+  homeTeamScore Int
+  awayTeamScore Int
+  homeTeamId Int
+  homeTeam   Team @relation("hometeam", fields: [homeTeamId], references: [id])
+  awayTeamId Int
+  awayTeam   Team @relation("awayteam", fields: [awayTeamId], references: [id])
 }

@@ -1,67 +1,110 @@
 import * as trpc from "@trpc/server";
 import { z } from "zod";
-import md5 from "crypto-js/md5";
 
 import { Context } from "./context";
+import { formatTeamsByRanking } from "./formatters";
 
 export const serverRouter = trpc
   .router<Context>()
-  .query("findAll", {
-    resolve: async ({ ctx }) => {
-      return await ctx.prisma.link.findMany();
+  .query("getTeamRankingByGroup", {
+    input: z.object({
+      groupNumber: z.number(),
+    }),
+    resolve: async ({ ctx, input }) => {
+      // returns a list of teams in the input group, sorted by ranking
+      const matches = await ctx.prisma.match.findMany({
+        where: {
+          OR: [
+            {
+              homeTeam: {
+                groupNumber: input.groupNumber,
+              },
+            },
+            {
+              awayTeam: {
+                groupNumber: input.groupNumber,
+              },
+            },
+          ],
+        },
+      });
+      const teams = await ctx.prisma.team.findMany({
+        where: {
+          groupNumber: input.groupNumber,
+        },
+      });
+      return formatTeamsByRanking(teams, matches);
     },
   })
-  .query("findByHash", {
+  .query("findAllMatches", {
+    resolve: async ({ ctx }) => {
+      return await ctx.prisma.match.findMany();
+    },
+  })
+  .mutation("removeMatch", {
     input: z.object({
-      hash: z.string(),
+      id: z.number(),
     }),
-    resolve: async ({ input, ctx }) => {
-      return await ctx.prisma.link.findUnique({
+    resolve: async ({ ctx, input }) => {
+      return await ctx.prisma.match.delete({
         where: {
-          shortenedPath: input.hash,
+          id: input.id,
         },
       });
     },
   })
-  .mutation("shortenURL", {
-    input: z.object({
-      url: z.string(),
-    }),
+  .mutation("addMatches", {
+    input: z.array(
+      z.object({
+        homeTeamName: z.string(),
+        awayTeamName: z.string(),
+        homeTeamScore: z.number(),
+        awayTeamScore: z.number(),
+      })
+    ),
     resolve: async ({ input, ctx }) => {
-      // check if URL already existins in DB
-      const existingLink = await ctx.prisma.link.findUnique({
-        where: {
-          url: input.url,
-        },
+      // get all teams as a map of team name to team id
+      const teams = await ctx.prisma.team.findMany();
+      const teamMap = new Map<string, number>();
+      teams.forEach((team) => {
+        teamMap.set(team.name, team.id);
+      });
+      // create the neccessary matches
+      const matches = input.map((match) => {
+        return {
+          homeTeamId: teamMap.get(match.homeTeamName)!,
+          awayTeamId: teamMap.get(match.awayTeamName)!,
+          homeTeamScore: match.homeTeamScore,
+          awayTeamScore: match.awayTeamScore,
+        };
+      });
+      // insert the matches
+      await ctx.prisma.match.createMany({
+        data: matches,
+      });
+    },
+  })
+  .mutation("addTeams", {
+    input: z.array(
+      z.object({
+        teamName: z.string(),
+        registrationDate: z.date(),
+        groupNumber: z.number(),
       })
-      if (existingLink) {
-        // return shortenedPath if it already exists
-        return existingLink.shortenedPath
-      }
-      // MD5 hash the URL and get the first 8 characters
-      let hashed = md5(input.url).toString().slice(0, 7)
-      // check if hash already exists in DB
-      let existingHash = await ctx.prisma.link.findUnique({
-        where: {
-          shortenedPath: hashed.toString(),
-        },
-      })
-      while (existingHash) {
-        // if hash already exists, generate a new one
-        hashed = md5(hashed).toString().slice(0, 8)
-        existingHash = await ctx.prisma.link.findUnique({
-          where: {
-            shortenedPath: hashed.toString(),
-          },
-        })
-      }
-      await ctx.prisma.link.create({
-        data: {
-          url: input.url,
-          shortenedPath: hashed,
-        },
-      })
-      return hashed
+    ),
+    resolve: async ({ input, ctx }) => {
+      // create the neccessary teams
+      const teams = input.map((team) => {
+        return {
+          name: team.teamName,
+          registrationDate: team.registrationDate,
+          groupNumber: team.groupNumber,
+        };
+      });
+      // insert the teams
+      await ctx.prisma.team.createMany({
+        data: teams,
+      });
     },
   });
 

@@ -11,7 +11,9 @@
 
 First, clone the repo into a folder
 
-Next, run the following commands
+Next, update the `.env` file in the root folder with the DATABASE_URL (sent via email)
+
+Lastly, run the following commands
 
 ```bash
 yarn install && yarn build

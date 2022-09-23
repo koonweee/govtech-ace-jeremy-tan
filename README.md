@@ -11,7 +11,7 @@
 
 First, clone the repo into a folder
 
-Next, update the `.env` file in the root folder with the DATABASE_URL (sent via email)
+Next, rename the `.env.example` file in the root folder to `.env` and update it with the DATABASE_URL (sent via email)
 
 Lastly, run the following commands
 

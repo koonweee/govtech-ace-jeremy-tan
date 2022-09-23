@@ -24,6 +24,8 @@
     "@trpc/next": "^9.27.2",
     "@trpc/react": "^9.27.2",
     "@trpc/server": "^9.27.2",
+    "@types/cors": "^2.8.12",
+    "cors": "^2.8.5",
     "crypto-js": "^4.1.1",
     "eslint-plugin-react": "^7.31.8",
     "formik": "^2.2.9",

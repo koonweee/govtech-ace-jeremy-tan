@@ -1,6 +1,4 @@
-import { styles } from '@/utils/theme';
-import { Box, Grid } from '@material-ui/core';
-import Paper from '@material-ui/core/Paper';
+import { Grid } from '@material-ui/core';
 import MatchListView from './components/match-list-view';
 import TeamsTableView from './components/teams-table-view';
 
@@ -8,12 +6,12 @@ export default function Dashboard(): JSX.Element {
   return (
     <Grid
       container
-      spacing={0}
-      alignItems="center"
+      spacing={2}
       justifyContent="center"
-      direction="column"
+      alignContent='center'
+      style={{ padding: 20 }}
     >
-      <Grid item>
+      <Grid item xs={12}>
         <TeamsTableView />
       </Grid>
       <Grid item>

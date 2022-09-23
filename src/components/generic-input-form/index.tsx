@@ -1,5 +1,7 @@
 import { TextField, Button, CircularProgress, Typography } from "@material-ui/core";
 import { Formik } from "formik";
+import { PopupState } from "material-ui-popup-state/core";
+import React from "react";
 import * as Yup from "yup";
 
 interface Props {
@@ -9,14 +11,18 @@ interface Props {
   inputFormat: string;
   inputLabel: string;
   inputHelperText: string;
+  inputValidator: (input: string) => string[];
+  mutationInputFormatter: (input: string) => any;
   buttonText: string;
+  popupState: PopupState;
 }
 
 interface FormValues {
   input?: string;
 }
 
-export function GenericInputForm({ onSubmit, mutation, isMutationLoading, inputFormat, inputLabel, inputHelperText, buttonText }: Props): JSX.Element {
+export function GenericInputForm({ inputValidator, onSubmit, mutation, isMutationLoading, inputFormat, inputLabel, inputHelperText, buttonText, mutationInputFormatter, popupState }: Props): JSX.Element {
+  const [inputErrors, setInputErrors] = React.useState<string[]>([]);
   return (
     <Formik<FormValues>
       initialValues={{
@@ -24,14 +30,15 @@ export function GenericInputForm({ onSubmit, mutation, isMutationLoading, inputF
       }}
       onSubmit={(values) => {
         // call mutation to add teams
-        mutation({url: values.input!});
-        onSubmit &&onSubmit("placeholder");
+        mutation(mutationInputFormatter(values.input!));
+        onSubmit && onSubmit("placeholder");
+        popupState.close();
       }}
       validationSchema={Yup.object({
         input: Yup.string().required(inputHelperText),
       })}
     >
-      {({ values, handleChange, handleSubmit, touched, errors, isValid }) => (
+      {({ values, handleChange, handleSubmit, touched, errors, isValid, setTouched }) => (
         <form onSubmit={handleSubmit}>
           <Typography variant="h6">
           {inputLabel}
@@ -46,9 +53,13 @@ export function GenericInputForm({ onSubmit, mutation, isMutationLoading, inputF
             label={`Enter ${inputLabel}`}
             placeholder={inputFormat}
             value={values.input}
-            onChange={handleChange}
-            error={touched.input && Boolean(errors.input)}
-            helperText={touched.input && errors.input}
+            onChange={(value) => {
+              handleChange(value);
+              setInputErrors(inputValidator(value.target.value));
+              setTouched({ input: true });
+            }}
+            error={touched.input && (Boolean(errors.input) || inputErrors.length > 0)}
+            helperText={touched.input && (errors.input || inputErrors.join(", "))}
             variant="outlined"
             multiline
             minRows={4}
@@ -58,7 +69,7 @@ export function GenericInputForm({ onSubmit, mutation, isMutationLoading, inputF
             isMutationLoading ? (
               <CircularProgress style={{ marginLeft: "auto", marginRight: "auto"}}/>
             ) : (
-              <Button color="primary" variant="outlined" fullWidth type="submit" disabled={!isValid || isMutationLoading}>
+              <Button color="primary" variant="outlined" fullWidth type="submit" disabled={!isValid || isMutationLoading || inputErrors.length > 0}>
                 {buttonText}
               </Button>
             )

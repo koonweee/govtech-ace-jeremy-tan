@@ -2,17 +2,22 @@ import * as trpc from "@trpc/server";
 import { z } from "zod";
 
 import { Context } from "./context";
-import { formatTeamsByRanking } from "./formatters";
+import { formatMatches } from "./formatters/matches";
+import { formatTeamsByRanking } from "./formatters/teams";
+import { prisma } from './prisma';
+import superjson from 'superjson';
+import { Team } from "@prisma/client";
 
 export const serverRouter = trpc
   .router<Context>()
+  .transformer(superjson)
   .query("getTeamRankingByGroup", {
     input: z.object({
       groupNumber: z.number(),
     }),
     resolve: async ({ ctx, input }) => {
       // returns a list of teams in the input group, sorted by ranking
-      const matches = await ctx.prisma.match.findMany({
+      const matches = await prisma.match.findMany({
         where: {
           OR: [
             {
@@ -28,7 +33,7 @@ export const serverRouter = trpc
           ],
         },
       });
-      const teams = await ctx.prisma.team.findMany({
+      const teams = await prisma.team.findMany({
         where: {
           groupNumber: input.groupNumber,
         },
@@ -38,17 +43,30 @@ export const serverRouter = trpc
   })
   .query("findAllMatches", {
     resolve: async ({ ctx }) => {
-      return await ctx.prisma.match.findMany();
+      const matches = await prisma.match.findMany();
+      const teams = await prisma.team.findMany();
+      return formatMatches(matches, teams);
     },
   })
-  .mutation("removeMatch", {
-    input: z.object({
-      id: z.number(),
-    }),
+  .query("getAllTeamsByNames", {
+    resolve: async ({ ctx }) => {
+      const teams = await prisma.team.findMany();
+      // create map of team name to team object
+      const teamNameMap = new Map<string, Team>();
+      teams.forEach((team) => {
+        teamNameMap.set(team.name, team);
+      });
+      return teamNameMap;
+    },
+  })
+  .mutation("removeMatches", {
+    input: z.array(z.number()),
     resolve: async ({ ctx, input }) => {
-      return await ctx.prisma.match.delete({
+      return await prisma.match.deleteMany({
         where: {
-          id: input.id,
+          id: {
+            in: input,
+          },
         },
       });
     },
@@ -64,7 +82,7 @@ export const serverRouter = trpc
     ),
     resolve: async ({ input, ctx }) => {
       // get all teams as a map of team name to team id
-      const teams = await ctx.prisma.team.findMany();
+      const teams = await prisma.team.findMany();
       const teamMap = new Map<string, number>();
       teams.forEach((team) => {
         teamMap.set(team.name, team.id);
@@ -79,7 +97,7 @@ export const serverRouter = trpc
         };
       });
       // insert the matches
-      await ctx.prisma.match.createMany({
+      await prisma.match.createMany({
         data: matches,
       });
     },
@@ -102,9 +120,16 @@ export const serverRouter = trpc
         };
       });
       // insert the teams
-      await ctx.prisma.team.createMany({
+      await prisma.team.createMany({
         data: teams,
       });
+    },
+  })
+  .mutation("deleteAllData", {
+    resolve: async ({ input, ctx }) => {
+      // delete all data in teams and matches
+      await prisma.match.deleteMany({});
+      await prisma.team.deleteMany({});
     },
   });
 

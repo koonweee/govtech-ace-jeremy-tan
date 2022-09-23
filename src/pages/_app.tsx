@@ -2,6 +2,7 @@ import { withTRPC } from "@trpc/next";
 import { AppType } from "next/dist/shared/lib/utils";
 import type { ServerRouter } from "@/server/router";
 import React from "react";
+import superjson from "superjson";
 
 const App: AppType = function MyApp({ Component, pageProps }) {
   React.useEffect(() => {
@@ -20,7 +21,7 @@ export default withTRPC<ServerRouter>({
       ? `https://govtech-enp-jeremy-tan.vercel.app/api/trpc`
       : "http://localhost:3000/api/trpc";
 
-    return { url };
+    return { url, transformer: superjson };
   },
   ssr: true,
 })(App);
